@@ -9,21 +9,24 @@
 <body>
 <div class="wrap">
     <header>
-        <span class="lc">🗜️</span>
+        <span class="lc"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7-5 7 5"/><path d="M5 15l7 5 7-5"/><line x1="4" y1="12" x2="20" y2="12"/></svg></span>
         <div class="brandname">Squish</div>
         <div class="grow"></div>
-        <div class="live"><i></i><span id="liveStatus">Starting</span></div>
+        <div class="live"><i></i><span id="liveStatus" aria-live="polite">Starting</span></div>
         <div class="clock"><span id="elapsed">0:00</span><small>&nbsp;elapsed</small></div>
         <nav class="h-nav">
             <a href="/config">Config</a>
         </nav>
         <button class="theme" id="themeToggle" type="button" aria-label="Switch theme">
-            <span class="ico">◐</span><span class="lbl-light">Dark</span><span class="lbl-dark">Light</span>
+            <span class="ico"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></span><span class="lbl-light">Dark</span><span class="lbl-dark">Light</span>
         </button>
     </header>
 
+    <main>
+    <h1 class="visually-hidden">Squish — compression dashboard</h1>
+
     <!-- 01 -->
-    <div class="eyebrow"><span class="n">01</span> <b>Space reclaimed</b></div>
+    <h2 class="eyebrow"><span class="n">01</span> <b>Space reclaimed</b></h2>
     <div class="grid hero">
         <div class="card">
             <div class="k">Reclaimed from database</div>
@@ -38,13 +41,13 @@
     </div>
 
     <!-- 02 -->
-    <div class="eyebrow"><span class="n">02</span> <b>Run progress</b></div>
+    <h2 class="eyebrow"><span class="n">02</span> <b>Run progress</b></h2>
     <div class="card">
         <div class="phead">
             <div class="lead"><b id="readCount">0</b> of <span id="totalCount">0</span> candidates read</div>
             <div class="badge" id="runBadge">running</div>
         </div>
-        <div class="seg">
+        <div class="seg" id="runSeg" role="progressbar" aria-label="Documents processed" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <span class="s-comp" id="segComp" style="width:0%"></span>
             <span class="s-skip" id="segSkip" style="width:0%"></span>
             <span class="s-fail" id="segFail" style="width:0%"></span>
@@ -58,7 +61,7 @@
     </div>
 
     <!-- 03 -->
-    <div class="eyebrow"><span class="n">03</span> <b>Active profile &amp; on-demand API</b></div>
+    <h2 class="eyebrow"><span class="n">03</span> <b>Active profile &amp; on-demand API</b></h2>
     <div class="grid twoup">
         <div class="card">
             <div class="k" id="profileName" style="margin-bottom:6px">Profile</div>
@@ -68,15 +71,15 @@
         </div>
         <div class="card">
             <div class="k" style="margin-bottom:9px">On-demand REST · authenticated</div>
-            <div class="endpoint"><span class="verb">POST</span>/api/compress<span class="lock">🔒 basic auth</span></div>
-            <div class="endpoint"><span class="verb">POST</span>/api/thumbnail<span class="lock">🔒 basic auth</span></div>
+            <div class="endpoint"><span class="verb">POST</span>/api/compress<span class="lock"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>basic auth</span></div>
+            <div class="endpoint"><span class="verb">POST</span>/api/thumbnail<span class="lock"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>basic auth</span></div>
             <div class="rowline" style="margin-top:6px"><span class="lab">Calls since start</span><span class="val" id="onDemandCalls">0</span></div>
             <div class="rowline"><span class="lab">Last</span><span class="val" id="onDemandLast">—</span></div>
         </div>
     </div>
 
     <!-- 04 -->
-    <div class="eyebrow"><span class="n">04</span> <b>Throughput &amp; health</b></div>
+    <h2 class="eyebrow"><span class="n">04</span> <b>Throughput &amp; health</b></h2>
     <div class="grid three">
         <div class="card">
             <div class="k">Throughput</div>
@@ -88,12 +91,12 @@
             <div class="gaugewrap">
                 <div class="g">
                     <div class="sub" style="margin-top:0">CPU · <span id="cpuCores">0</span> cores</div>
-                    <div class="gauge"><i id="cpuBar" style="width:0%;background:var(--green)"></i></div>
+                    <div class="gauge" role="progressbar" aria-label="CPU usage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="cpuBar" style="width:0%;background:var(--green)"></i></div>
                     <div class="sub"><span id="cpuPercent">0</span>%</div>
                 </div>
                 <div class="g">
                     <div class="sub" style="margin-top:0">Heap · <span id="memoryMax">0 B</span></div>
-                    <div class="gauge"><i id="memoryBar" style="width:0%;background:var(--slate-fill)"></i></div>
+                    <div class="gauge" role="progressbar" aria-label="Heap usage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="memoryBar" style="width:0%;background:var(--slate-fill)"></i></div>
                     <div class="sub"><span id="memoryUsed">0 B</span> · <span id="activeThreads">0</span> vthreads</div>
                 </div>
             </div>
@@ -106,10 +109,11 @@
     </div>
 
     <!-- 05 -->
-    <div class="eyebrow"><span class="n">05</span> <b>Live activity</b></div>
+    <h2 class="eyebrow"><span class="n">05</span> <b>Live activity</b></h2>
     <div class="card log">
         <div id="activityLog"></div>
     </div>
+    </main>
 
     <footer>
         <div>API <code>/api/status</code> · Prometheus <code>/metrics</code> · refresh 2s · virtual threads</div>

@@ -9,7 +9,7 @@
 <body>
 <div class="wrap">
     <header>
-        <span class="lc">🗜️</span>
+        <span class="lc"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7-5 7 5"/><path d="M5 15l7 5 7-5"/><line x1="4" y1="12" x2="20" y2="12"/></svg></span>
         <div class="brandname">Squish</div>
         <div class="h-src">Configuration</div>
         <div class="grow"></div>
@@ -19,14 +19,17 @@
             <a href="/metrics">Metrics</a>
         </nav>
         <button class="theme" id="themeToggle" type="button" aria-label="Switch theme">
-            <span class="ico">◐</span><span class="lbl-light">Dark</span><span class="lbl-dark">Light</span>
+            <span class="ico"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></span><span class="lbl-light">Dark</span><span class="lbl-dark">Light</span>
         </button>
     </header>
 
-    <div id="message" class="message"></div>
+    <main>
+    <h1 class="visually-hidden">Squish — configuration</h1>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
 
     <!-- Current status -->
-    <div class="eyebrow"><span class="n">01</span> <b>Current status</b></div>
+    <h2 class="eyebrow"><span class="n">01</span> <b>Current status</b></h2>
     <div class="card">
         <div class="status-row">
             <span class="status-label">Active Profile</span>
@@ -47,7 +50,7 @@
     </div>
 
     <!-- Profiles -->
-    <div class="eyebrow"><span class="n">02</span> <b>Compression Profiles</b></div>
+    <h2 class="eyebrow"><span class="n">02</span> <b>Compression Profiles</b></h2>
     <div class="card">
         <div id="profilesContainer" class="loading">Loading profiles...</div>
     </div>
@@ -58,7 +61,7 @@
     </div>
 
     <!-- Execution scope (watchdog) -->
-    <div class="eyebrow"><span class="n">03</span> <b>Execution scope</b> · watchdog</div>
+    <h2 class="eyebrow"><span class="n">03</span> <b>Execution scope</b> · watchdog</h2>
     <div class="card">
         <div id="scopeDisabled" class="scope-off" style="display:none">
             This instance is not running in watchdog mode, so a scope override has no effect here.
@@ -103,6 +106,7 @@
             </div>
         </div>
     </div>
+    </main>
 
     <footer>
         <div>API <code>/api/config</code> · Prometheus <code>/metrics</code></div>
