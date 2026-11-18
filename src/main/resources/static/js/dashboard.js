@@ -159,6 +159,10 @@ async function refresh() {
         document.getElementById('segComp').style.width = pct(d.compressed, total).toFixed(1) + '%';
         document.getElementById('segSkip').style.width = pct(d.skipped, total).toFixed(1) + '%';
         document.getElementById('segFail').style.width = pct(d.errors, total).toFixed(1) + '%';
+        // Expose overall processed share to assistive tech (the bar itself is three spans).
+        const seg = document.getElementById('runSeg');
+        if (seg) seg.setAttribute('aria-valuenow',
+            Math.round(pct(d.compressed + d.skipped + d.errors, total)));
         setText('legendComp', d.compressed.toLocaleString());
         setText('legendSkip', d.skipped.toLocaleString());
         setText('legendFail', d.errors.toLocaleString());
@@ -211,11 +215,15 @@ async function refresh() {
         if (sys) {
             setText('cpuCores', sys.cpuCores);
             setText('cpuPercent', sys.cpuPercent.toFixed(0));
-            document.getElementById('cpuBar').style.width = Math.min(100, sys.cpuPercent) + '%';
+            const cpuBar = document.getElementById('cpuBar');
+            cpuBar.style.width = Math.min(100, sys.cpuPercent) + '%';
+            cpuBar.parentElement.setAttribute('aria-valuenow', Math.round(sys.cpuPercent));
             setText('memoryMax', formatSize(sys.memMax));
             setText('memoryUsed', formatSize(sys.memUsed));
             setText('activeThreads', sys.activeThreads);
-            document.getElementById('memoryBar').style.width = Math.min(100, sys.memPercent) + '%';
+            const memoryBar = document.getElementById('memoryBar');
+            memoryBar.style.width = Math.min(100, sys.memPercent) + '%';
+            memoryBar.parentElement.setAttribute('aria-valuenow', Math.round(sys.memPercent));
         }
 
         // ---- 05 live activity (DOM APIs only; filenames are untrusted) ----
@@ -234,5 +242,23 @@ async function refresh() {
     }
 }
 
+// Poll every 2s, but only while the tab is visible: a backgrounded dashboard
+// should not keep waking the CPU (and firing network requests) for no viewer.
+let refreshTimer = null;
+function startRefresh() {
+    if (refreshTimer === null) refreshTimer = setInterval(refresh, 2000);
+}
+function stopRefresh() {
+    if (refreshTimer !== null) { clearInterval(refreshTimer); refreshTimer = null; }
+}
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        stopRefresh();
+    } else {
+        refresh();       // catch up immediately on return
+        startRefresh();
+    }
+});
+
 refresh();
-setInterval(refresh, 2000);
+startRefresh();

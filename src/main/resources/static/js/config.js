@@ -21,9 +21,12 @@ function makeBadge(cls, text) {
 }
 
 // Highlight the card matching `name` (dataset compare avoids selector injection).
+// aria-pressed mirrors the visual .selected state so the button role stays truthful.
 function highlightSelected(name) {
     document.querySelectorAll('.profile-card').forEach(c => {
-        c.classList.toggle('selected', c.dataset.profile === name);
+        const on = c.dataset.profile === name;
+        c.classList.toggle('selected', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
 }
 
@@ -33,10 +36,22 @@ function highlightSelected(name) {
 function buildProfileCard(name, p) {
     const isActive = name === currentConfig.activeProfile;
 
+    // Selecting a profile is a real control: expose it as a keyboard-operable
+    // button (Enter/Space), not a click-only div.
     const card = document.createElement('div');
     card.className = 'profile-card' + (isActive ? ' active' : '');
     card.dataset.profile = name;
-    card.addEventListener('click', () => selectProfile(name));
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-pressed', name === selectedProfile ? 'true' : 'false');
+    const activate = () => selectProfile(name);
+    card.addEventListener('click', activate);
+    card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault();
+            activate();
+        }
+    });
 
     const nameRow = document.createElement('div');
     nameRow.className = 'profile-name';
