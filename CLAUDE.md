@@ -9,9 +9,9 @@ Squish is a PDF compression pipeline. It reads PDF BLOBs out of an Oracle databa
 ## Build & Run
 
 ```bash
-mvn clean package -DskipTests      # build executable jar -> target/squish-3.0.0.jar
-mvn test                           # 143 unit tests, no DB or network needed
-java -jar target/squish-3.0.0.jar --spring.profiles.active=prod
+mvn clean package -DskipTests      # build executable jar -> target/squish-3.3.0.jar
+mvn test                           # 162 unit tests, no DB or network needed
+java -jar target/squish-3.3.0.jar --spring.profiles.active=prod
 ./build-dist.sh                    # tar/zip distribution bundle under target/
 ```
 
