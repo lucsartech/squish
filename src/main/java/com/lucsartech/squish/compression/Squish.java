@@ -1,6 +1,7 @@
 package com.lucsartech.squish.compression;
 
 import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.exceptions.BadPasswordException;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
@@ -129,9 +130,37 @@ public final class Squish {
                     duration
             );
         } catch (Exception e) {
+            BadPasswordException encrypted = findBadPassword(e);
+            if (encrypted != null) {
+                // Not a failure: the document is encrypted and iText will not rewrite it
+                // without the owner password. Batch and watchdog build Squish with no
+                // password at all (only /api/compress can pass one per request), so we
+                // leave the original untouched and record it as SKIPPED rather than ERROR.
+                log.debug("Skipped id={}/ctr={} ({}): encrypted ({})", id, ctr, filename, encrypted.getMessage());
+                return CompressionResult.Skipped.encrypted(id, ctr, filename, originalSize, encrypted.getMessage());
+            }
             log.warn("Failed to compress PDF id={}/ctr={} ({}): {}", id, ctr, filename, e.getMessage());
             return CompressionResult.Failure.of(id, ctr, filename, e);
         }
+    }
+
+    /**
+     * Walk the cause chain looking for a {@link BadPasswordException}. In the paths seen
+     * today it is thrown directly, but checking the chain is a cheap guard against a
+     * future path that wraps it. iText throws this type both for a missing owner password
+     * (document opens read-only, modification blocked) and for a wrong/missing user
+     * password, so either way the document is one we cannot rewrite.
+     */
+    private static BadPasswordException findBadPassword(Throwable t) {
+        for (Throwable cur = t; cur != null; cur = cur.getCause()) {
+            if (cur instanceof BadPasswordException bpe) {
+                return bpe;
+            }
+            if (cur.getCause() == cur) {
+                break;
+            }
+        }
+        return null;
     }
 
     /**

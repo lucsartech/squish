@@ -1,8 +1,10 @@
 package com.lucsartech.squish.compression;
 
 import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.pdf.EncryptionConstants;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
@@ -70,6 +72,28 @@ public final class TestPdfs {
 
     private static int clamp(int v) {
         return Math.max(0, Math.min(255, v));
+    }
+
+    /**
+     * A PDF with an empty user password and a non-empty owner password: it opens for
+     * reading without a password, but modification is blocked. This is the production
+     * case (a fiscal document whose issuer locked editing) - Squish, which has no owner
+     * password, cannot rewrite it and iText throws {@code BadPasswordException}.
+     */
+    public static byte[] encrypted() throws IOException {
+        var props = new WriterProperties().setStandardEncryption(
+                new byte[0],
+                "owner-secret".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                EncryptionConstants.ALLOW_PRINTING,
+                EncryptionConstants.ENCRYPTION_AES_256);
+        try (var out = new ByteArrayOutputStream()) {
+            try (var writer = new PdfWriter(out, props);
+                 var pdfDoc = new PdfDocument(writer);
+                 var document = new Document(pdfDoc)) {
+                document.add(new Paragraph("Encrypted test document"));
+            }
+            return out.toByteArray();
+        }
     }
 
     /** A text-only PDF, which a pure-compression profile cannot shrink. */

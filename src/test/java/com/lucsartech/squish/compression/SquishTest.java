@@ -1,5 +1,6 @@
 package com.lucsartech.squish.compression;
 
+import com.itextpdf.kernel.exceptions.BadPasswordException;
 import com.lucsartech.squish.config.CompressionMode;
 import com.lucsartech.squish.config.CompressionProfile;
 import org.junit.jupiter.api.BeforeEach;
@@ -240,6 +241,43 @@ class SquishTest {
                     .compress(1L, 0L, "e.pdf", textPdf);
 
             assertThat(result).isInstanceOf(CompressionResult.Success.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("Encrypted input")
+    class EncryptedInput {
+
+        @Test
+        @DisplayName("an owner-password PDF is Skipped, not Failed")
+        void encryptedIsSkipped() throws IOException {
+            byte[] encrypted = TestPdfs.encrypted();
+
+            var result = compressor.compress(1L, 0L, "fiscal.pdf", encrypted);
+
+            assertThat(result)
+                    .as("encrypted input is a deliberate skip, never a failure")
+                    .isInstanceOf(CompressionResult.Skipped.class);
+            var skipped = (CompressionResult.Skipped) result;
+            assertThat(skipped.reason())
+                    .as("the exact iText message is kept so owner- vs user-password stay distinguishable")
+                    .contains(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword);
+            assertThat(skipped.noGain())
+                    .as("encrypted is 'cannot touch', not 'valid PDF we could not improve'")
+                    .isFalse();
+            assertThat(skipped.size()).isEqualTo(encrypted.length);
+        }
+
+        @Test
+        @DisplayName("encrypted input is Skipped on the PDF/A path too")
+        void encryptedIsSkippedUnderPdfA() throws IOException {
+            byte[] encrypted = TestPdfs.encrypted();
+
+            var result = new Squish(CompressionProfile.archival()).compress(1L, 0L, "fiscal.pdf", encrypted);
+
+            assertThat(result).isInstanceOf(CompressionResult.Skipped.class);
+            assertThat(((CompressionResult.Skipped) result).reason())
+                    .contains(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword);
         }
     }
 

@@ -54,8 +54,8 @@ public sealed interface CompressionResult {
     }
 
     /**
-     * Result for files that are left untouched: not a PDF, or already as small as
-     * we can make them.
+     * Result for files that are left untouched: not a PDF, already as small as we can
+     * make them, or encrypted so that iText refuses to rewrite them.
      */
     record Skipped(
             long id,
@@ -78,6 +78,18 @@ public sealed interface CompressionResult {
         public static Skipped noGain(long id, long ctr, String filename, long size, long compressedSize) {
             return new Skipped(id, ctr, filename, size,
                     "No size gain (%d -> %d bytes)".formatted(size, compressedSize), true);
+        }
+
+        /**
+         * The PDF is encrypted and iText cannot rewrite it without the owner password, so
+         * the original is left untouched - a deliberate skip, not a failure. Common for
+         * fiscal documents whose issuer locked modification. {@code noGain} is false: this
+         * is not a valid PDF we simply could not improve, it is one we chose not to touch.
+         * The exact iText message is kept as the reason so a bad owner password stays
+         * distinguishable from a bad user password in the tracking table.
+         */
+        public static Skipped encrypted(long id, long ctr, String filename, long size, String detail) {
+            return new Skipped(id, ctr, filename, size, "Encrypted: " + detail, false);
         }
     }
 
