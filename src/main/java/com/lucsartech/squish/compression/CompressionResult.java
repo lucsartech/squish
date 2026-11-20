@@ -81,12 +81,13 @@ public sealed interface CompressionResult {
         }
 
         /**
-         * The PDF is encrypted and iText cannot rewrite it without the owner password, so
-         * the original is left untouched - a deliberate skip, not a failure. Common for
-         * fiscal documents whose issuer locked modification. {@code noGain} is false: this
-         * is not a valid PDF we simply could not improve, it is one we chose not to touch.
-         * The exact iText message is kept as the reason so a bad owner password stays
-         * distinguishable from a bad user password in the tracking table.
+         * The PDF is encrypted/protected and iText cannot rewrite it (no owner password, an
+         * unsupported encryption scheme, or a decryption that fails), so the original is
+         * left untouched - a deliberate skip, not a failure. Common for fiscal documents
+         * whose issuer locked modification. {@code noGain} is false: this is not a valid PDF
+         * we simply could not improve, it is one we chose not to touch. The detail (the iText
+         * message, or the probed crypto failure) is kept as the reason so the cases stay
+         * distinguishable in the tracking table - e.g. owner vs user password.
          */
         public static Skipped encrypted(long id, long ctr, String filename, long size, String detail) {
             return new Skipped(id, ctr, filename, size, "Encrypted: " + detail, false);
