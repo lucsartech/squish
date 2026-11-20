@@ -1,5 +1,8 @@
 package com.lucsartech.squish.compression;
 
+import com.itextpdf.kernel.exceptions.BadPasswordException;
+import com.itextpdf.kernel.exceptions.KernelExceptionMessageConstant;
+import com.itextpdf.kernel.exceptions.PdfException;
 import com.lucsartech.squish.config.CompressionMode;
 import com.lucsartech.squish.config.CompressionProfile;
 import org.junit.jupiter.api.BeforeEach;
@@ -240,6 +243,102 @@ class SquishTest {
                     .compress(1L, 0L, "e.pdf", textPdf);
 
             assertThat(result).isInstanceOf(CompressionResult.Success.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("Encrypted input")
+    class EncryptedInput {
+
+        @Test
+        @DisplayName("an owner-password PDF is Skipped, not Failed")
+        void encryptedIsSkipped() throws IOException {
+            byte[] encrypted = TestPdfs.encrypted();
+
+            var result = compressor.compress(1L, 0L, "fiscal.pdf", encrypted);
+
+            assertThat(result)
+                    .as("encrypted input is a deliberate skip, never a failure")
+                    .isInstanceOf(CompressionResult.Skipped.class);
+            var skipped = (CompressionResult.Skipped) result;
+            assertThat(skipped.reason())
+                    .as("the exact iText message is kept so owner- vs user-password stay distinguishable")
+                    .contains(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword);
+            assertThat(skipped.noGain())
+                    .as("encrypted is 'cannot touch', not 'valid PDF we could not improve'")
+                    .isFalse();
+            assertThat(skipped.size()).isEqualTo(encrypted.length);
+        }
+
+        @Test
+        @DisplayName("encrypted input is Skipped on the PDF/A path too")
+        void encryptedIsSkippedUnderPdfA() throws IOException {
+            byte[] encrypted = TestPdfs.encrypted();
+
+            var result = new Squish(CompressionProfile.archival()).compress(1L, 0L, "fiscal.pdf", encrypted);
+
+            assertThat(result).isInstanceOf(CompressionResult.Skipped.class);
+            assertThat(((CompressionResult.Skipped) result).reason())
+                    .contains(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword);
+        }
+    }
+
+    /**
+     * Pins the exact triage policy for the production error taxonomy: which failures mean
+     * "encrypted/protected, skip it" versus "broken, record a failure". Exercises
+     * {@link Squish#encryptionSkipReason} directly, with the real iText message constants.
+     *
+     * <p>The mute crypto tail ("Cipher not initialized", "arraycopy ... byte[32]") is
+     * deliberately NOT classified as a skip: it is indistinguishable from corruption
+     * without the original file, and a decryption that failed cannot be re-read to confirm
+     * encryption. Those stay a Failure; see {@link Squish#encryptionSkipReason}.
+     */
+    @Nested
+    @DisplayName("Encryption vs corruption triage")
+    class EncryptionTriage {
+
+        @Test
+        @DisplayName("a password error is a skip (by exception type)")
+        void passwordErrorsSkip() {
+            assertThat(Squish.encryptionSkipReason(
+                    new BadPasswordException(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword)))
+                    .isEqualTo(BadPasswordException.PdfReaderNotOpenedWithOwnerPassword);
+            assertThat(Squish.encryptionSkipReason(
+                    new BadPasswordException(KernelExceptionMessageConstant.BAD_USER_PASSWORD)))
+                    .isEqualTo(KernelExceptionMessageConstant.BAD_USER_PASSWORD);
+        }
+
+        @Test
+        @DisplayName("an encryption-scheme error is a skip (by message), even wrapped")
+        void encryptionSchemeErrorsSkip() {
+            assertThat(Squish.encryptionSkipReason(
+                    new PdfException(KernelExceptionMessageConstant.PDF_ENCRYPTION)))
+                    .isEqualTo(KernelExceptionMessageConstant.PDF_ENCRYPTION);
+            assertThat(Squish.encryptionSkipReason(
+                    new PdfException(KernelExceptionMessageConstant.NO_COMPATIBLE_ENCRYPTION_FOUND)))
+                    .isNotNull();
+            // wrapped in an outer exception: the cause chain must still be walked
+            assertThat(Squish.encryptionSkipReason(
+                    new RuntimeException("while writing", new PdfException(KernelExceptionMessageConstant.PDF_ENCRYPTION))))
+                    .isEqualTo(KernelExceptionMessageConstant.PDF_ENCRYPTION);
+        }
+
+        @Test
+        @DisplayName("neither corruption nor mute crypto is a skip")
+        void corruptionAndMuteCryptoAreNotSkipped() {
+            // genuine corruption
+            assertThat(Squish.encryptionSkipReason(
+                    new PdfException(KernelExceptionMessageConstant.TRAILER_NOT_FOUND)))
+                    .isNull();
+            assertThat(Squish.encryptionSkipReason(
+                    new PdfException(KernelExceptionMessageConstant.ERROR_WHILE_READING_OBJECT_STREAM)))
+                    .isNull();
+            // mute crypto failures carry no "encryption"/password signal -> stay a Failure
+            assertThat(Squish.encryptionSkipReason(new RuntimeException("Cipher not initialized")))
+                    .isNull();
+            assertThat(Squish.encryptionSkipReason(
+                    new RuntimeException("arraycopy: last destination index 48 out of bounds for byte[32]")))
+                    .isNull();
         }
     }
 

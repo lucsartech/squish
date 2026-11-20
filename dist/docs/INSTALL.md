@@ -172,7 +172,7 @@ one part was committed. If you are upgrading from such an installation, see
 | `OTT_CTR` | The part within that document (`OTTI_CTR`). Unique together with `OTT_ID`. |
 | `ORIGINAL_SIZE`, `COMPRESSED_SIZE` | Bytes. `COMPRESSED_SIZE` is NULL for skipped and failed records. |
 | `SAVINGS_PERCENT` | |
-| `STATUS` | `SUCCESS`, `SKIPPED` (not a PDF, or already optimal), `ERROR`, or `MIGRATED` (written only by the migration script — a part *assumed* already processed; see [Upgrading](#upgrading)) |
+| `STATUS` | `SUCCESS`, `SKIPPED` (not a PDF, already optimal, or encrypted/protected), `ERROR`, or `MIGRATED` (written only by the migration script — a part *assumed* already processed; see [Upgrading](#upgrading)) |
 | `ERROR_MESSAGE` | Reason for the skip or failure |
 | `PROCESSED_DATE`, `HOSTNAME` | Audit trail |
 
@@ -1021,13 +1021,21 @@ In order of likelihood:
 
 ### Records land in the tracking table as `SKIPPED`
 
-`SKIPPED` is not an error. Either the BLOB does not start with `%PDF-` (it is not a PDF), or
-the PDF is already optimal and compressing it would only make it bigger. Squish leaves the
-original alone in both cases; `ERROR_MESSAGE` tells you which.
+`SKIPPED` is not an error. The BLOB does not start with `%PDF-` (it is not a PDF), the PDF is
+already optimal and compressing it would only make it bigger, or the PDF is
+**encrypted/protected** so iText cannot rewrite it (a locked owner password — common on
+fiscal documents — a wrong/missing user password, or an encryption scheme iText does not
+handle). Squish leaves the original alone in every case; `ERROR_MESSAGE` tells you which,
+and the encrypted ones are prefixed `Encrypted:`. Find them with:
 
-Password-protected PDFs are a different matter: the pipeline has no password to open them
-with, so they fail and are recorded as `ERROR`. There is no configuration for supplying one
-— only the REST API accepts a `password` field.
+```sql
+SELECT * FROM SQUISH_PROCESSED WHERE STATUS = 'SKIPPED' AND ERROR_MESSAGE LIKE 'Encrypted:%';
+```
+
+The pipeline has no password to open protected PDFs with, and there is no configuration for
+supplying one — only the REST API accepts a `password` field. A rare tail of malformed-crypto
+PDFs still lands in `ERROR` (their failure carries no signal that marks it as encryption), so
+the `ERROR` bucket is genuinely "needs a look".
 
 ### The service died, or stopped processing
 

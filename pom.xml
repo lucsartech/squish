@@ -13,7 +13,7 @@
 
     <groupId>com.lucsartech</groupId>
     <artifactId>squish</artifactId>
-    <version>3.3.0</version>
+    <version>3.3.1</version>
     <packaging>jar</packaging>
 
     <name>Squish PDF Compression Engine</name>

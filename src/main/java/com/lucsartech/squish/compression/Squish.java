@@ -1,6 +1,7 @@
 package com.lucsartech.squish.compression;
 
 import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.exceptions.BadPasswordException;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.Rectangle;
@@ -34,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -129,9 +131,62 @@ public final class Squish {
                     duration
             );
         } catch (Exception e) {
+            String encryptedReason = encryptionSkipReason(e);
+            if (encryptedReason != null) {
+                // Not a failure: the document is encrypted/protected and iText will not
+                // rewrite it without the owner password. Batch and watchdog build Squish
+                // with no password at all (only /api/compress can pass one per request),
+                // so we leave the original untouched and record it as SKIPPED, not ERROR.
+                log.debug("Skipped id={}/ctr={} ({}): encrypted ({})", id, ctr, filename, encryptedReason);
+                return CompressionResult.Skipped.encrypted(id, ctr, filename, originalSize, encryptedReason);
+            }
             log.warn("Failed to compress PDF id={}/ctr={} ({}): {}", id, ctr, filename, e.getMessage());
             return CompressionResult.Failure.of(id, ctr, filename, e);
         }
+    }
+
+    /**
+     * Decide whether a compression failure really means "this PDF is encrypted/protected,
+     * so we cannot rewrite it" (a deliberate skip) rather than "this PDF is broken" (a real
+     * failure). Returns a short reason when it is a protection case, or {@code null} to let
+     * the caller record a Failure. Package-private so the exact policy is unit-tested
+     * directly.
+     *
+     * <p>Two signals, walked over the whole cause chain so a wrapped exception still counts:
+     * <ol>
+     *   <li>a wrong/missing user or owner password → {@link BadPasswordException} (the vast
+     *       majority of real-world failures: ~97%, mostly a locked owner password);</li>
+     *   <li>an encryption scheme iText cannot set up → a {@code PdfException} whose message
+     *       contains "encryption" ("PdfEncryption exception.", "No compatible encryption
+     *       found.", "Unknown encryption type ...").</li>
+     * </ol>
+     *
+     * <p>Everything else stays a Failure, on purpose. That includes genuine corruption
+     * ("Trailer not found.", "Error while reading Object Stream.", "Error at file pointer
+     * N") and also a small tail of <em>mute</em> crypto failures ("Cipher not initialized",
+     * "arraycopy ... out of bounds for byte[32]") that are decryption blowing up but carry
+     * no textual signal. We deliberately do not try to recover those: the only way to tell
+     * them from corruption is to re-read the document, and a document whose decryption
+     * failed fails that re-read identically (iText decrypts while reading, in
+     * {@code PdfReader.readPdf()}, before the owner-password check) — so a probe cannot see
+     * it is encrypted. Guessing from a raw {@code ArrayIndexOutOfBoundsException} would risk
+     * labelling real corruption as a skip, which would hide data damage. They are rare and
+     * want a human look, so ERROR is the honest bucket.
+     */
+    static String encryptionSkipReason(Throwable error) {
+        for (Throwable cur = error; cur != null; cur = cur.getCause()) {
+            if (cur instanceof BadPasswordException) {
+                return cur.getMessage();
+            }
+            String m = cur.getMessage();
+            if (m != null && m.toLowerCase(Locale.ROOT).contains("encryption")) {
+                return m;
+            }
+            if (cur.getCause() == cur) {
+                break;
+            }
+        }
+        return null;
     }
 
     /**
